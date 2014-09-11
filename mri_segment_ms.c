@@ -30,30 +30,25 @@ const char *Progname ;
 int main(int argc, char *argv[]) ;
 int totalNumberOfClasses;
 
-static int get_option(int argc, char *argv[]) ;
+//static int get_option(int argc, char *argv[]) ;
+
+MRI *MRIsumPriorProbability(MRI *mri_prior_wm, MRI *mri_prior_gm, MRI *mri_sum) ; 
 
 
 
-MRI *MRIsumPriorProbability(MRI *mri_prior_wm, *mri_prior_gm) ; 
 
-static MRI *MRIrecoverBrightWhite(MRI *mri_T1, MRI *mri_src, MRI *mri_dst,
-                                  float wm_low, float wm_hi, float slack,
-                                  float pct_thresh) ;
-static int is_diagonal(MRI *mri, int x, int y, int z) ;
 /* Labels for prior labels (GM and WM)
  *
  */
 int
 main(int argc, char *argv[])
 { 
-  MRI     *mri_src, *mri_dst, *mri_tmp, *mri_sum ;
+  MRI     *mri_src, *mri_dst, *mri_sum, *prior_gm, *prior_wm ;
   char    *input_file_name, *output_file_name, *gm_prior_probability_file_name, *wm_prior_probability_file_name ;
-  int     nargs, i, msec ;
   struct timeb  then ;
-  float   white_mean, white_sigma, gray_mean, gray_sigma ;
- 
   char cmdline[CMD_LINE_LEN] ;
- 
+
+
   TAGmakeCommandLineString(argc, argv, cmdline) ;
 
   /* initializing volumes from command line
@@ -68,6 +63,9 @@ main(int argc, char *argv[])
   prior_gm =  MRIread(gm_prior_probability_file_name) ;
   prior_wm =  MRIread(wm_prior_probability_file_name) ;
 
+  /* initializing variables */
+  mri_dst = MRIcopy(mri_src, NULL) ;
+  mri_sum = MRIcopy(mri_src, NULL) ;
   if (!mri_src )
   {
     ErrorExit(ERROR_NOFILE, "%s: could not read source volume from %s",
@@ -118,30 +116,29 @@ main(int argc, char *argv[])
   /*Finite mixture model to calculate likelihood
    * we assume 2 clusters (K) for each probability map
    * 1. Caculating sum of prior probability at each voxel */
-  MRIsumPriorProbability(prior_gm, prior_wm, mri_sum)
+  MRIsumPriorProbability(prior_gm, prior_wm, mri_sum);
   MRIwrite(mri_dst, output_file_name) ;
 
 
   MRIfree(&mri_src) ;
   MRIfree(&prior_gm ) ;
   MRIfree(&prior_wm ) ;
-  msec = TimerStop(&then) ;
+  //msec = TimerStop(&then) ;
   exit(0) ;
 }
 
 MRI *
 MRIsumPriorProbability(MRI *mri_prior_gm, MRI *mri_prior_wm,  MRI *mri_sum)
 {
-  int  x, y, z, width, height, depth, nchanged, ntested ;
+  int  x, y, z, width, height, depth ;
   float wmVal, gmVal,  sumVal ;
  
   fprintf(stderr, "Summing prior probability images\n") ;
  
-  nchanged = ntested = 0 ;
   width = mri_prior_gm->width ;
   height = mri_prior_gm->height ;
   depth = mri_prior_gm->depth ;
- 
+  mri_sum = MRIcopy(mri_prior_gm, NULL) ;
   for (z = 0 ; z < depth ; z++)
   {
     for (y = 0 ; y < height ; y++)
@@ -155,31 +152,5 @@ MRIsumPriorProbability(MRI *mri_prior_gm, MRI *mri_prior_wm,  MRI *mri_sum)
       }
     }
   }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+  return mri_sum ;
+}
