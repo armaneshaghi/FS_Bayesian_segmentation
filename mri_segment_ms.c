@@ -2,7 +2,7 @@
  * @file  mri_segment.c
  * @brief segments white matter and gray matter` from a brain volume
  * prior based segmentation
- * Arman Eshaghi 
+ * Author: Arman Eshaghi
  * contact: arman.eshaghi@me.com
  * For evaluation with Doug Greve, started in Sep2014
  * */
@@ -29,7 +29,8 @@ const char *MRI_SEGMENT_VERSION = "$Revision: Arman_evaluation";
 const char *Progname ;
 int main(int argc, char *argv[]) ;
 int totalNumberOfClasses;
-
+static int  verbose = 0 ;
+static void  usage_exit(int code) ;
 //static int get_option(int argc, char *argv[]) ;
 
 MRI *MRIsumPriorProbability(MRI *mri_prior_wm, MRI *mri_prior_gm, MRI *mri_sum) ; 
@@ -47,9 +48,49 @@ main(int argc, char *argv[])
   char    *input_file_name, *output_file_name, *gm_prior_probability_file_name, *wm_prior_probability_file_name ;
   struct timeb  then ;
   char cmdline[CMD_LINE_LEN] ;
-
+  int nargs ;
 
   TAGmakeCommandLineString(argc, argv, cmdline) ;
+  nargs = handle_version_option
+          (argc, argv,
+           "$Id: mri_segment.c,v 1.42 2014/07/29 17:51:35 fischl Exp $",
+           "$Name:  $");
+  if (nargs && argc - nargs == 1)
+  {
+    exit (0);
+  }
+  argc -= nargs;
+  Progname = argv[0] ;
+  DiagInit(NULL, NULL, NULL) ;
+  ErrorInit(NULL, NULL, NULL) ;
+
+  for ( ; argc > 1 && ISOPTION(*argv[1]) ; argc--, argv++)
+  {
+    nargs = get_option(argc, argv) ;
+    argc -= nargs ;
+    argv += nargs ;
+  }
+
+  if (argc < 3)
+  {
+    usage_exit(1);
+  }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
   /* initializing volumes from command line
    */
