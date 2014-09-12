@@ -12,6 +12,7 @@ const char *MRI_SEGMENT_VERSION = "$Revision: Arman_evaluation";
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <math.h>
 
 #include "diag.h"
 #include "error.h"
@@ -35,17 +36,15 @@ static void  usage_exit(int code) ;
 
 MRI *MRIsumPriorProbability(MRI *mri_prior_wm, MRI *mri_prior_gm, MRI *mri_sum) ; 
 
-
-
-
 /* Labels for prior labels (GM and WM)
  *
  */
 int
 main(int argc, char *argv[])
 { 
-  MRI     *mri_src, *mri_dst, *mri_sum, *prior_gm, *prior_wm ;
-  char    *input_file_name, *output_file_name, *gm_prior_probability_file_name, *wm_prior_probability_file_name ;
+  MRI     *mri_src, *mri_dst, *mri_sum, *prior_gm, *prior_wm, *mri_norm_wm, *mri_norm_gm ;
+  char    *input_file_name, *output_file_name, *gm_prior_probability_file_name, 
+          *wm_prior_probability_file_name ;
   struct timeb  then ;
   char cmdline[CMD_LINE_LEN] ;
   int nargs ;
@@ -75,22 +74,6 @@ main(int argc, char *argv[])
   {
     usage_exit(1);
   }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
   /* initializing volumes from command line
    */
@@ -195,3 +178,36 @@ MRIsumPriorProbability(MRI *mri_prior_gm, MRI *mri_prior_wm,  MRI *mri_sum)
   }
   return mri_sum ;
 }
+
+MRI *
+MRInormalize(MRI *mri_sum, MRI *mri_prior_gm, MRI *mri_prior_wm,
+    MRI *mri_norm_gm, MRI *mri_norm_wm, ) 
+{
+  int  x, y, z, width, height, depth ;
+  float wmVal, gmVal,  sumVal, wmNormVal, gmNormVal ;
+
+  fprintf(stderr, "Normalizing prior probability images\n") ;
+  
+  width = mri_sum->width ;
+  height = mri_sum->height ;
+  depth = mri_sum->depth ;
+  mri_norm = MRIcopy(mri_sum, NULL) ;
+  for (z = 0 ; z < depth ; z++)
+  {
+    for (y = 0 ; y < height ; y++)                   
+    {
+      for (x = 0 ; x < width ; x++)
+      {
+        sumVal = MRIgetVoxVal(mri_sum, x, y, z, 0) ;
+        wmVal = MRIgetVoxVal(mri_prior_wm, x, y, z, 0) ;
+        gmVal = MRIgetVoxVal(mri_prior_gm, x, y, z, 0) ;
+        wmNormVal = wmVal / sumVal
+        gmNormVal = gmVal / sumVal
+        MRIsetVoxVal(*mri_norm_gm, x, y, z, 0, gmNormVal) ;
+        MRIsetVoxVal(*mri_norm_wm, x, y, z, 0, wmNormVal) ;
+      }
+    }
+  }
+}
+
+     
