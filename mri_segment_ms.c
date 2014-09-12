@@ -210,4 +210,8 @@ MRInormalize(MRI *mri_sum, MRI *mri_prior_gm, MRI *mri_prior_wm,
   }
 }
 
-     
+double meanVariance(MRI *mri_tmp)
+{
+  int  x, y, z, width, height, depth ;                
+  float wmVal, gmVal,  sumVal, wmNormVal, gmNormVal ;
+
