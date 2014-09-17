@@ -90,6 +90,7 @@ main(int argc, char *argv[])
   /* initializing variables */
   mri_dst = MRIcopy(mri_src, NULL) ;
   mri_sum = MRIcopy(mri_src, NULL) ;
+  /* routine checks to see if the image is properly loaded*/
   if (!mri_src )
   {
     ErrorExit(ERROR_NOFILE, "%s: could not read source volume from %s",
@@ -141,6 +142,16 @@ main(int argc, char *argv[])
    * we assume 2 clusters (K) for each probability map
    * 1. Caculating sum of prior probability at each voxel */
   MRIsumPriorProbability(prior_gm, prior_wm, mri_sum);
+  /* divide WM and GM values by sum of their probabilities
+   * so that they will sum to 1 (required as a presumption in 
+   * general mixture models */
+  MRInormalize(mri_sum, mri_prior_gm, mri_prior_wm, mri_norm_gm, mri_norm_wm) ;
+
+
+
+
+
+
   MRIwrite(mri_dst, output_file_name) ;
 
 
@@ -210,8 +221,54 @@ MRInormalize(MRI *mri_sum, MRI *mri_prior_gm, MRI *mri_prior_wm,
   }
 }
 
-double meanVariance(MRI *mri_tmp)
+double MRImean(MRI *mri_tmp)
 {
-  int  x, y, z, width, height, depth ;                
-  float wmVal, gmVal,  sumVal, wmNormVal, gmNormVal ;
+  int  x, y, z, width, height, depth, size ;
+  double total, currentValue ;
+  total = 0 ;
+  currentValue = 0;
+  width = mri_tmp->width ;
+  height = mri_tmp->height ;
+  depth = mri_tmp->depth ;
+  size = depth + width + height ;
+  mri_norm = MRIcopy(mri_sum, NULL) ;
+  for (z = 0 ; z < depth ; z++)
+  {
+    for (y = 0 ; y < height ; y++)
+    {
+      for (x = 0 ; x < width ; x++)
+      {
+        currentValue= MRIgetVoxVal(mri_temp, x, y, z, 0) ;
+        total +=  currentValue ;
+
+      }
+    }
+  }
+}
+
+double MRIvariance(MRI *mri_tmp, double *mean)
+{
+  int x, y, z, width, height, depth, size ;
+  double total, currentValue ;
+  total = 0 ;
+  currentValue = 0;
+  width = mri_tmp->width ;
+  height = mri_tmp->height ;
+  depth = mri_tmp->depth ;
+  size = depth + width + height ;
+  for (z = 0 ; z < depth ; z++)
+  {
+    for (y = 0 ; y < height ; y++)
+    {
+      for (x = 0 ; x < width ; x++)
+      {
+        currentValue= MRIgetVoxVal(mri_temp, x, y, z, 0) ;
+        squared_difference = pow((currentValue - mean), 2) ;
+        total += squared_difference ;
+      }
+    }
+  }
+  variance = total / size ;
+  return variance ;
+}
 
