@@ -2,7 +2,7 @@
  * @file  mri_segment.c
  * @brief segments white matter and gray matter` from a brain volume
  * prior based segmentation, we assume that prior probability maps and 
- * T1 weighted data are registered before running this program.
+ * we assume that intensity and prior data are in perfect registration
  * Author: Arman Eshaghi
  * contact: arman.eshaghi@me.com
  * For evaluation with Doug Greve, project started on 10 Sep 2014
@@ -15,7 +15,8 @@ const char *MRI_SEGMENT_VERSION = "$Revision: Arman_evaluation";
 #include <string.h>
 #include <ctype.h>
 #include <math.h>
-
+#include "matrix.h"
+#include "vector.h"
 #include "diag.h"
 #include "error.h"
 #include "macros.h"
@@ -37,20 +38,30 @@ static void  usage_exit(int code) ;
 //static int get_option(int argc, char *argv[]) ;
 
 MRI *MRIsumPriorProbability(MRI *mri_prior_wm, MRI *mri_prior_gm, MRI *mri_sum) ; 
+double pow(double a, double b) ;
 
+#define MAX_TPM 2
+#define lkp 9
 /* Labels for prior labels (GM and WM)
  *
  */
 int
 main(int argc, char *argv[])
 { 
-  MRI     *mri_src, *mri_dst, *mri_sum, *prior_gm, *prior_wm, *mri_norm_wm, *mri_norm_gm,
+  MRI     *mri_src, *mri_dst, *mri_sum, *mri_prior[MAX_TPM], *mri_norm_wm, *mri_norm_gm,
           *mri_mask ;
+  MRI     *mri_prior[MAX_TPM] ;
+  double mean[MAX_TPM], variance[MAX_TPM],mm0[MAX_TPM], mm1[MAX_TPM], mm2[MAX_TPM], mixingGamma[lkp] ;
   char    *input_file_name, *output_file_name, *gm_prior_probability_file_name, 
           *wm_prior_probability_file_name ;
   struct timeb  then ;
   char cmdline[CMD_LINE_LEN] ;
   int nargs, numberVoxels;
+  /*number of gaussians is 4 for grey matter and five
+  for everything else */
+  unsigned int NumGaussian[lkp] = {1, 1, 1, 1, 2, 2, 2, 2, 2 } ;
+  //image moment 0, 1, and 2
+  double mm0, mm1, mm2, priorVoxVal;
 
   TAGmakeCommandLineString(argc, argv, cmdline) ;
   nargs = handle_version_option
@@ -167,27 +178,43 @@ main(int argc, char *argv[])
   }
   // loop over depth and calculate image moments  
   printf("Calculating image moments\n");
+  // initializing momnets for the first time
+  mm0 = 0;
+  mm1 = 0;
+  mm2 = 0;
+  priorVoxVal = 0;
 
   for (z = 0 ; z < depth ; z++)
   {
-   for (y = 0 ; y < height ; y++)
-   {
-     for (x = 0 ; x < width ; x++)
-     {
-       for (i = 0; i < nPriorVolumes; i ++)
-       {
+    for (y = 0 ; y < height ; y++)
+    {
+      for (x = 0 ; x < width ; x++)
+      {
+        for (i = 0; i < nPriorVolumes; i ++)
+        {
+          priorVoxVal = MRIgetVoxVal(x, y, z, mri_prior[i], 0) ;
+          intensityVoxVal = MRIgetVoxVal(x, y, z, mri_src[i], 0) ;
+          mm0[i] += voxVal ;
+          mm1[i] += intensityVoxVal * priorVoxVal ;
+          mm2[i] += intensityVoxVal * intensityVoxVal * priorVoxVal ;
+        }
+      }
+    }
+  }
+  // Calculating means and variances with moments to initiliaze Gaussians
+  printf("Calculating means and variances for each probability map\n");
+  for (i = 0; i < nPriorVolumes; i++)
+  {
+    mean[i] = mm1[i] / mm0[i] ;
+    variance[i] += mm2[i] - mm1[i] * mm1[i] / mm0[i] ;
 
-
-       }  
-
+  }
   /*Finite mixture model to calculate likelihood
    * we assume 2 clusters (K) for each probability map
    * 1. Caculating sum of prior probability at each voxel */
-  MRIsumPriorProbability(prior_gm, prior_wm, mri_sum);
   /* divide WM and GM values by sum of their probabilities
    * so that they will sum to 1 (required as a presumption in 
    * general mixture models */
-  MRInormalize(mri_sum, mri_prior_gm, mri_prior_wm, mri_norm_gm, mri_norm_wm) ;
 
 
 
@@ -297,7 +324,7 @@ double MRIvariance(MRI *mri_tmp, double *mean)
   width = mri_tmp->width ;
   height = mri_tmp->height ;
   depth = mri_tmp->depth ;
-  size = depth + width + height ;
+  size = depth * width * height ;
   for (z = 0 ; z < depth ; z++)
   {
     for (y = 0 ; y < height ; y++)
@@ -314,3 +341,22 @@ double MRIvariance(MRI *mri_tmp, double *mean)
   return variance ;
 }
 
+double likelihoodCalc(MRI *mri_src, double *mixingGamma, double *means, double *variances)
+{
+  /*getting number of Gaussians from mg  */
+  int noGaussians = sizeof(mg)/sizeof(int) ;
+  width = mri_src->width ;
+  height = mri_src->height ;
+  depth = mri_src->depth ;
+  size = depth * width * height ;
+  for (int i = 0; i < noGaussians; i++)
+    {
+      amp = mixingGamma[i] 
+
+    }
+}
+
+
+/* issues:
+ * 1- mri passed to likelihoods needs to be "buffered" like spm.
+ * 2- 
